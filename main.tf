@@ -1,10 +1,15 @@
-
+resource "null_resource" "dependency" {
+  triggers = {
+    all_dependencies = "${join(",", var.dependson)}"
+  }
+}
 
 data "template_file" "prapare_all_nodes" {
     template = "${file("${path.module}/templates/prepare_all_nodes.sh.tpl")}"
     vars = {
         ceph_poolid = "${var.ceph_poolid}"
     }
+    depends_on = ["null_resource.dependency"]
 }
 
 data "template_file" "prepare_bastion_node" {
@@ -13,6 +18,7 @@ data "template_file" "prepare_bastion_node" {
         staticipblock = "${replace(var.staticipblock, "/", "\\/")}"
         ssh_username = "${var.bastion_ssh_user}"
     }
+    depends_on = ["null_resource.dependency"]
 }
 
 data "template_file" "ansible_inventory" {
@@ -21,6 +27,7 @@ data "template_file" "ansible_inventory" {
         node_list = "${join("\n", var.storage_hostname)}"
         ssh_user = "${var.bastion_ssh_user}"
     }
+    depends_on = ["null_resource.dependency"]
 }
 
 resource "null_resource" "prepare_all_nodes" {
@@ -45,6 +52,7 @@ resource "null_resource" "prepare_all_nodes" {
             "sudo /tmp/prapare_all_nodes.sh"
         ]
     }
+    depends_on = ["null_resource.dependency"]
 }
 
 resource "null_resource" "prepare_bastion_node" {
@@ -76,6 +84,7 @@ resource "null_resource" "prepare_bastion_node" {
     }
 
     depends_on = [
+        "null_resource.dependency",
         "null_resource.prepare_all_nodes",
     ]
 }
@@ -113,6 +122,7 @@ resource "null_resource" "install_ceph" {
     }
 
     depends_on = [
+        "null_resource.dependency",
         "null_resource.prepare_all_nodes",
         "null_resource.prepare_bastion_node",
         "null_resource.copy_ansible_inventory"
